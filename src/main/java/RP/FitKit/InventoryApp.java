@@ -61,6 +61,9 @@ public class InventoryApp extends JFrame {
     private boolean isDiscoMode = false;
     private JPanel bottomPanel;
     private JPanel legendPanel;
+    private JLabel summaryPalletCountLabel;
+    private JLabel summaryTotalQuantityLabel;
+    private JLabel summaryUniqueItemsLabel;
 
     public InventoryApp() {
         setTitle("Voorraadtelling Prototype (Java)");
@@ -311,7 +314,7 @@ public class InventoryApp extends JFrame {
                         editedPalletIds.add(palletId);
                         updateEditedCount();
                         saveTableState();
-
+                        updateSummaryPanel();
                     } catch (NumberFormatException e) {
                         JOptionPane.showMessageDialog(InventoryApp.this, "Voer een geldig getal in voor het aantal.", "Ongeldige Invoer", JOptionPane.WARNING_MESSAGE);
                     }
@@ -349,6 +352,7 @@ public class InventoryApp extends JFrame {
                     String palletId = (String) tableModel.getValueAt(row, 0);
                     editedPalletIds.add(palletId);
                     updateEditedCount();
+                    updateSummaryPanel();
                 }
             }
         });
@@ -367,11 +371,13 @@ public class InventoryApp extends JFrame {
         setupBottomPanel();
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
         loadTableState();
+        updateSummaryPanel();
     }
 
     private void setupBottomPanel() {
         bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setBackground(COLOR_BACKGROUND);
+        bottomPanel.add(createSummaryPanel(), BorderLayout.NORTH);
 
         legendPanel = new JPanel(new GridLayout(2, 2, 15, 5));
         legendPanel.setBackground(COLOR_BACKGROUND);
@@ -596,6 +602,7 @@ public class InventoryApp extends JFrame {
         tableModel.addRow(new Object[]{palletId, productName, quantity, ""});
         lastInsertedRow = tableModel.getRowCount() - 1;
         saveTableState();
+        updateSummaryPanel();
         resetForNextScan();
     }
 
@@ -625,6 +632,7 @@ public class InventoryApp extends JFrame {
                 }
                 updateEditedCount();
                 saveTableState();
+                updateSummaryPanel();
             }
         } else {
             JOptionPane.showMessageDialog(this, "Selecteer een of meerdere rijen om te verwijderen.", "Geen selectie", JOptionPane.WARNING_MESSAGE);
@@ -681,7 +689,6 @@ public class InventoryApp extends JFrame {
                     writer.newLine();
                 }
                 JOptionPane.showMessageDialog(this, "De gegevens zijn succesvol geëxporteerd naar " + fileToSave.getName(), "Export succesvol", JOptionPane.INFORMATION_MESSAGE);
-                clearSession();
             } catch (IOException ex) {
                 ex.printStackTrace();
                 JOptionPane.showMessageDialog(this, "Fout bij het exporteren van de gegevens: " + ex.getMessage(), "Exportfout", JOptionPane.ERROR_MESSAGE);
@@ -774,7 +781,6 @@ public class InventoryApp extends JFrame {
                 writer.write("</eExact>\n");
 
                 JOptionPane.showMessageDialog(this, "De gegevens zijn succesvol geëxporteerd naar " + fileToSave.getName(), "Export succesvol", JOptionPane.INFORMATION_MESSAGE);
-                clearSession();
             } catch (IOException ex) {
                 ex.printStackTrace();
                 JOptionPane.showMessageDialog(this, "Fout bij het exporteren van de gegevens: " + ex.getMessage(), "Exportfout", JOptionPane.ERROR_MESSAGE);
@@ -830,12 +836,54 @@ public class InventoryApp extends JFrame {
         System.exit(0);
     }
 
+    private JPanel createSummaryPanel() {
+        JPanel summaryPanel = new JPanel(new GridLayout(1, 3, 20, 5));
+        summaryPanel.setOpaque(false);
+        summaryPanel.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createEmptyBorder(0, 5, 5, 5), "Sessie Overzicht",
+                TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION,
+                new Font("Helvetica", Font.BOLD, 14), Color.DARK_GRAY));
+
+        summaryPalletCountLabel = new JLabel("Gescande Pallets: 0");
+        summaryPalletCountLabel.setFont(FONT_LABEL);
+        summaryTotalQuantityLabel = new JLabel("Totaal Aantal Stuks: 0");
+        summaryTotalQuantityLabel.setFont(FONT_LABEL);
+        summaryUniqueItemsLabel = new JLabel("Unieke Artikelen: 0");
+        summaryUniqueItemsLabel.setFont(FONT_LABEL);
+
+        summaryPanel.add(summaryPalletCountLabel);
+        summaryPanel.add(summaryTotalQuantityLabel);
+        summaryPanel.add(summaryUniqueItemsLabel);
+
+        return summaryPanel;
+    }
+    private void updateSummaryPanel() {
+        int palletCount = tableModel.getRowCount();
+        long totalQuantity = 0;
+        Set<String> uniqueItems = new HashSet<>();
+
+        for (int row = 0; row < palletCount; row++) {
+            try {
+                totalQuantity += Long.parseLong(tableModel.getValueAt(row, 2).toString());
+            } catch (NumberFormatException e) {
+                // Ignore rows with invalid quantity for summary calculation
+            }
+            uniqueItems.add(tableModel.getValueAt(row, 1).toString());
+        }
+
+        summaryPalletCountLabel.setText("Gescande Pallets: " + palletCount);
+        summaryTotalQuantityLabel.setText("Totaal Aantal Stuks: " + totalQuantity);
+        summaryUniqueItemsLabel.setText("Unieke Artikelen: " + uniqueItems.size());
+    }
+
+
     private void clearSession() {
         try {
             Files.deleteIfExists(SESSION_FILE_PATH);
             tableModel.setRowCount(0);
             editedPalletIds.clear();
             updateEditedCount();
+            updateSummaryPanel();
             lastInsertedRow = -1;
             resetForNextScan();
         } catch (IOException e) {
@@ -901,6 +949,7 @@ public class InventoryApp extends JFrame {
                 }
             }
             updateEditedCount();
+            updateSummaryPanel();
         } catch (IOException | NumberFormatException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Kon de vorige sessie niet herstellen.", "Sessiefout", JOptionPane.ERROR_MESSAGE);

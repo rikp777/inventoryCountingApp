@@ -12,6 +12,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <installer.type>dmg</installer.type>
     </properties>
 
     <build>
@@ -50,7 +51,7 @@
                     <vendor>Limax</vendor>
                     <mainClass>RP.FitKit.Main</mainClass>
                     <mainJar>${project.build.finalName}-jar-with-dependencies.jar</mainJar>
-                    <type>DMG</type>
+                    <type>${installer.type}</type>
                     <runtimeImage>target/runtime</runtimeImage>
                 </configuration>
             </plugin>
