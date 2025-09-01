@@ -182,11 +182,31 @@ public class InventoryApp extends JFrame {
         mainPanel.setBackground(COLOR_BACKGROUND);
 
         JPanel inputPanel = new JPanel(new GridBagLayout());
-        inputPanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEtchedBorder(), "Scan Details",
-                TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION,
-                new Font("Helvetica", Font.BOLD, 16), Color.DARK_GRAY));
+        inputPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         inputPanel.setBackground(COLOR_PANEL_BG);
+
+        JPanel headerPanel = new JPanel(new BorderLayout(0, 0));
+        headerPanel.setOpaque(false);
+        headerPanel.setBorder(new EmptyBorder(2, 5, 2, 5));
+
+        JLabel titleLabel = new JLabel("Scan Details");
+        titleLabel.setFont(new Font("Helvetica", Font.BOLD, 16));
+        titleLabel.setForeground(Color.DARK_GRAY);
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+
+        JButton helpButton = new JButton("?");
+        helpButton.setMargin(new Insets(0, 0, 0, 0));
+        helpButton.setFont(new Font("Helvetica", Font.BOLD, 10));
+        helpButton.setPreferredSize(new Dimension(18, 18));
+        helpButton.setFocusable(false);
+        helpButton.addActionListener(e -> showHelpDialog());
+        headerPanel.add(helpButton, BorderLayout.EAST);
+
+        JPanel titledInputPanel = new JPanel(new BorderLayout());
+        titledInputPanel.setBorder(BorderFactory.createEtchedBorder());
+        titledInputPanel.add(headerPanel, BorderLayout.NORTH);
+        titledInputPanel.add(inputPanel, BorderLayout.CENTER);
+
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(8, 8, 8, 8);
@@ -241,7 +261,7 @@ public class InventoryApp extends JFrame {
 
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBackground(COLOR_PANEL_BG);
-        topPanel.add(inputPanel, BorderLayout.CENTER);
+        topPanel.add(titledInputPanel, BorderLayout.CENTER);
         topPanel.add(buttonPanel, BorderLayout.SOUTH);
 
         String[] columnNames = {"Pallet ID", "Artikel", "Ingevoerd Aantal", "Notities"};
@@ -342,7 +362,7 @@ public class InventoryApp extends JFrame {
         bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setBackground(COLOR_BACKGROUND);
 
-        legendPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 5));
+        legendPanel = new JPanel(new GridLayout(2, 2, 15, 5));
         legendPanel.setBackground(COLOR_BACKGROUND);
         legendPanel.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createEmptyBorder(), "Legenda",
@@ -356,19 +376,47 @@ public class InventoryApp extends JFrame {
 
         bottomPanel.add(legendPanel, BorderLayout.CENTER);
 
+        JPanel eastPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+        eastPanel.setOpaque(false);
+
         editedCountLabel = new JLabel();
         editedCountLabel.setFont(new Font("Helvetica", Font.ITALIC, 12));
-        editedCountLabel.setBorder(new EmptyBorder(0, 0, 0, 10));
         updateEditedCount();
-        bottomPanel.add(editedCountLabel, BorderLayout.EAST);
+        eastPanel.add(editedCountLabel);
+
+        JButton clearSessionButton = new JButton("Sessie Wissen");
+        clearSessionButton.setFont(new Font("Helvetica", Font.PLAIN, 12));
+        clearSessionButton.setForeground(Color.BLUE);
+        clearSessionButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        clearSessionButton.setBorder(null);
+        clearSessionButton.setContentAreaFilled(false);
+        clearSessionButton.addActionListener(e -> {
+            int confirmation = JOptionPane.showConfirmDialog(
+                    this,
+                    "Weet je zeker dat je de huidige sessie wilt wissen?\nAlle niet-geëxporteerde data gaat verloren.",
+                    "Bevestig Sessie Wissen",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+            if (confirmation == JOptionPane.YES_OPTION) {
+                clearSession();
+            }
+        });
+        eastPanel.add(clearSessionButton);
+
+        bottomPanel.add(eastPanel, BorderLayout.EAST);
     }
 
+
     private JPanel createLegendItem(Color color, String text) {
-        JPanel itemPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        JPanel itemPanel = new JPanel();
+        itemPanel.setLayout(new BoxLayout(itemPanel, BoxLayout.X_AXIS));
         itemPanel.setOpaque(false);
+        itemPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel colorSwatch = new JPanel();
         colorSwatch.setPreferredSize(new Dimension(16, 16));
+        colorSwatch.setMaximumSize(new Dimension(16, 16));
         colorSwatch.setBackground(color);
         colorSwatch.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
 
@@ -376,10 +424,12 @@ public class InventoryApp extends JFrame {
         label.setFont(new Font("Helvetica", Font.PLAIN, 12));
 
         itemPanel.add(colorSwatch);
+        itemPanel.add(Box.createRigidArea(new Dimension(5, 0)));
         itemPanel.add(label);
 
         return itemPanel;
     }
+
 
     private void updateEditedCount() {
         int count = editedPalletIds.size();
@@ -438,6 +488,16 @@ public class InventoryApp extends JFrame {
                 stopDiscoMode();
             }
             palletIdField.setText("");
+            return;
+        }
+
+        try {
+            Long.parseLong(palletId);
+        } catch (NumberFormatException e) {
+            if (!palletId.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Pallet ID moet een geldig getal zijn.", "Ongeldige Invoer", JOptionPane.WARNING_MESSAGE);
+                palletIdField.setText("");
+            }
             return;
         }
 
@@ -715,6 +775,28 @@ public class InventoryApp extends JFrame {
             JOptionPane.showMessageDialog(this, "Kon de vorige sessie niet herstellen.", "Sessiefout", JOptionPane.ERROR_MESSAGE);
         }
     }
+
+    private void showHelpDialog() {
+        String helpMessage = """
+                <html>
+                <body style='width: 350px;'>
+                  <h2>Uitleg Voorraadtelling</h2>
+                  <p>Dit programma is ontworpen om een <strong>CSV-tellijst</strong> te genereren. Deze lijst kan vervolgens direct in <strong>Exact</strong> worden geïmporteerd.</p>
+                  
+                  <h3>Belangrijk: Aantallen Aanpassen</h3>
+                  <p>Wanneer u een pallet scant, wordt het veld 'Ingevoerd Aantal' automatisch gevuld met het aantal zoals het oorspronkelijk is geregistreerd bij binnenkomst.</p>
+                  
+                  <p>Als een pallet is <strong>aangeslagen</strong> (d.w.z. deels gebruikt), is het cruciaal dat u dit standaard aantal <strong>handmatig aanpast</strong> naar de daadwerkelijke hoeveelheid die zich nu op de pallet bevindt.</p>
+                </body>
+                </html>
+                """;
+
+        JOptionPane.showMessageDialog(this,
+                helpMessage,
+                "Uitleg",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
 
     private void startDiscoMode() {
         if (discoTimer != null && discoTimer.isRunning()) {
