@@ -40,6 +40,20 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.panteleyev</groupId>
+                <artifactId>jpackage-maven-plugin</artifactId>
+                <version>1.6.6</version>
+                <configuration>
+                    <name>VoorraadApp</name>
+                    <appVersion>${project.version}</appVersion>
+                    <vendor>Limax</vendor>
+                    <mainClass>RP.FitKit.Main</mainClass>
+                    <mainJar>${project.build.finalName}-jar-with-dependencies.jar</mainJar>
+                    <type>DMG</type>
+                    <runtimeImage>target/runtime</runtimeImage>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

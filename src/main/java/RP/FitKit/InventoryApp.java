@@ -19,6 +19,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import javax.swing.Timer;
@@ -257,7 +259,16 @@ public class InventoryApp extends JFrame {
         JButton exportButton = new JButton("Exporteer naar CSV");
         exportButton.setFont(FONT_BUTTON);
         exportButton.addActionListener(e -> exportTableToCsv());
+        exportButton.setBackground(new Color(144, 238, 144));
+        exportButton.setOpaque(true);
         buttonPanel.add(exportButton);
+
+        JButton exportXmlButton = new JButton("Exporteer naar Exact XML");
+        exportXmlButton.setFont(FONT_BUTTON);
+        exportXmlButton.addActionListener(e -> exportTableToXml());
+        exportXmlButton.setBackground(new Color(255, 102, 102));
+        exportXmlButton.setOpaque(true);
+        buttonPanel.add(exportXmlButton);
 
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBackground(COLOR_PANEL_BG);
@@ -676,6 +687,126 @@ public class InventoryApp extends JFrame {
                 JOptionPane.showMessageDialog(this, "Fout bij het exporteren van de gegevens: " + ex.getMessage(), "Exportfout", JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    // Here the shit starts
+    private void exportTableToXml() {
+        if (tableModel.getRowCount() == 0) {
+            JOptionPane.showMessageDialog(this, "De tabel is leeg. Er is niets om te exporteren.", "Exportfout", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Exact XML-bestand opslaan");
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("XML-bestanden", "xml"));
+        fileChooser.setSelectedFile(new File("voorraadtelling.xml"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File fileToSave = fileChooser.getSelectedFile();
+            if (!fileToSave.getPath().toLowerCase().endsWith(".xml")) {
+                fileToSave = new File(fileToSave.getPath() + ".xml");
+            }
+
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileToSave))) {
+                LocalDate today = LocalDate.now();
+                String formattedDate = today.format(DateTimeFormatter.ISO_LOCAL_DATE);
+                String entryId = String.valueOf(System.currentTimeMillis()).substring(3); // Unique ID
+
+                writer.write("<?xml version=\"1.0\"?>\n");
+                writer.write("<eExact xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"eExact-Schema.xsd\">\n");
+                writer.write("  <FinEntries>\n");
+                writer.write("    <FinEntry entry=\"" + entryId + "\">\n");
+                writer.write("      <Journal code=\"090\" type=\"M\">\n");
+                writer.write("        <Description>Memoriaal JR</Description>\n");
+                writer.write("      </Journal>\n");
+
+                for (int row = 0; row < tableModel.getRowCount(); row++) {
+                    String palletId = escapeXml(tableModel.getValueAt(row, 0));
+                    String itemCode = escapeXml(extractItemCode(tableModel.getValueAt(row, 1)));
+                    String quantity = escapeXml(tableModel.getValueAt(row, 2));
+
+                    // Credit Line
+                    writer.write("      <FinEntryLine number=\"" + ((row * 2) + 1) + "\" type=\"N\" subtype=\"G\" code=\"1\" linecode=\"B\" transactiontype=\"100\">\n");
+                    writer.write("        <Date>" + formattedDate + "</Date>\n");
+                    writer.write("        <GLAccount code=\"3999\"></GLAccount>\n");
+                    writer.write("        <Description>Omschrijving van telling</Description>\n");
+                    writer.write("        <Costcenter code=\"001CC001\"></Costcenter>\n");
+                    writer.write("        <Item code=\"" + itemCode + "\"></Item>\n");
+                    writer.write("        <Warehouse code=\"1\"></Warehouse>\n");
+                    writer.write("        <Project code=\"\"></Project>\n");
+                    writer.write("        <Quantity>" + quantity + "</Quantity>\n");
+                    writer.write("        <Amount>\n");
+                    writer.write("          <Currency code=\"EUR\"/>\n");
+                    writer.write("          <Debit>0</Debit>\n");
+                    writer.write("          <Credit>0</Credit>\n");
+                    writer.write("          <VAT code=\"0\" type=\"B\" vattype=\"N\"></VAT>\n");
+                    writer.write("        </Amount>\n");
+                    writer.write("      </FinEntryLine>\n");
+
+                    // Debit Line
+                    writer.write("      <FinEntryLine number=\"" + ((row * 2) + 2) + "\" type=\"N\" subtype=\"G\" code=\"2\" linecode=\"B\" transactiontype=\"100\">\n");
+                    writer.write("        <Date>" + formattedDate + "</Date>\n");
+                    writer.write("        <GLAccount code=\"3550\"></GLAccount>\n");
+                    writer.write("        <Description>Omschrijving van telling</Description>\n");
+                    writer.write("        <Costcenter code=\"001CC001\"></Costcenter>\n");
+                    writer.write("        <Item code=\"" + itemCode + "\"></Item>\n");
+                    writer.write("        <Warehouse code=\"1\"></Warehouse>\n");
+                    writer.write("        <Project code=\"\"></Project>\n");
+                    writer.write("        <Quantity>-" + quantity + "</Quantity>\n");
+                    writer.write("        <Amount>\n");
+                    writer.write("          <Currency code=\"EUR\"/>\n");
+                    writer.write("          <Debit>0</Debit>\n");
+                    writer.write("          <Credit>0</Credit>\n");
+                    writer.write("          <VAT code=\"0\" type=\"B\" vattype=\"N\"></VAT>\n");
+                    writer.write("        </Amount>\n");
+                    writer.write("        <FinReferences TransactionOrigin=\"N\">\n");
+                    writer.write("          <YourRef>" + palletId + "</YourRef>\n");
+                    writer.write("          <DocumentDate>" + formattedDate + "</DocumentDate>\n");
+                    writer.write("          <ReportDate>" + formattedDate + "</ReportDate>\n");
+                    writer.write("        </FinReferences>\n");
+                    writer.write("      </FinEntryLine>\n");
+                }
+
+                writer.write("    </FinEntry>\n");
+                writer.write("  </FinEntries>\n");
+                writer.write("</eExact>\n");
+
+                JOptionPane.showMessageDialog(this, "De gegevens zijn succesvol geëxporteerd naar " + fileToSave.getName(), "Export succesvol", JOptionPane.INFORMATION_MESSAGE);
+                clearSession();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Fout bij het exporteren van de gegevens: " + ex.getMessage(), "Exportfout", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private String extractItemCode(Object articleNameObj) {
+        if (articleNameObj == null) {
+            return "";
+        }
+        String articleName = articleNameObj.toString();
+        int startIndex = articleName.lastIndexOf('(');
+        int endIndex = articleName.lastIndexOf(')');
+
+        if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
+            return articleName.substring(startIndex + 1, endIndex);
+        }
+        return "";
+    }
+
+
+    private String escapeXml(Object obj) {
+        if (obj == null) {
+            return "";
+        }
+        String text = obj.toString();
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
     }
 
     private void resetForNextScan() {
