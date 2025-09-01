@@ -36,10 +36,10 @@ jobs:
           cache: 'maven'
 
       - name: Install jpackage dependencies
-          if: runner.os == 'Linux'
-          run: |
-            sudo apt-get update
-            sudo apt-get install -y fakeroot
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot
 
       - name: Build with Maven
         # This command builds the project and tells jpackage which installer to create
