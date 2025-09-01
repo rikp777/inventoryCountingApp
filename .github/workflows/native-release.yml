@@ -42,12 +42,13 @@ jobs:
       - name: Rename artifact
         # Renames the installer to include the OS, e.g., VoorraadApp-windows.msi
         run: |
-          mv target/VoorraadApp-1.0-SNAPSHOT${{ matrix.asset_ext }} target/VoorraadApp-${{ matrix.os }}${{ matrix.asset_ext }}
+          mv target/*${{ matrix.asset_ext }} target/VoorraadApp-${{ matrix.os }}${{ matrix.asset_ext }}
         shell: bash
 
       - name: Upload artifact
         # Uploads the installer to be used in the 'release' job
         uses: actions/upload-artifact@v4
+
         with:
           name: VoorraadApp-${{ matrix.os }}
           path: target/VoorraadApp-${{ matrix.os }}${{ matrix.asset_ext }}
