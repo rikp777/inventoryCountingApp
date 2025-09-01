@@ -35,6 +35,12 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
+      - name: Install jpackage dependencies
+          if: runner.os == 'Linux'
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y fakeroot
+
       - name: Build with Maven
         # This command builds the project and tells jpackage which installer to create
         run: mvn -B package --file pom.xml -Dinstaller.type=${{ matrix.installer_type }}
