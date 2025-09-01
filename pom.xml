@@ -12,22 +12,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <installer.type>dmg</installer.type>
     </properties>
-
-    <developers>
-        <developer>
-            <name>Rik Peeters</name>
-            <email>rik.peeters@limax.nl</email>
-            <organization>Limax</organization>
-            <organizationUrl>https://www.limax.nl</organizationUrl>
-            <roles>
-                <role>Developer</role>
-                <role>Maintainer</role>
-            </roles>
-        </developer>
-    </developers>
-
 
     <build>
         <plugins>
@@ -65,10 +50,10 @@
                     <vendor>Limax</vendor>
                     <mainClass>RP.FitKit.Main</mainClass>
                     <mainJar>${project.build.finalName}-jar-with-dependencies.jar</mainJar>
-                    <type>${installer.type}</type>
                     <runtimeImage>target/runtime</runtimeImage>
                 </configuration>
             </plugin>
+
         </plugins>
     </build>
 
