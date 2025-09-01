@@ -21,10 +21,6 @@
             <email>rik.peeters@limax.nl</email>
             <organization>Limax</organization>
             <organizationUrl>https://www.limax.nl</organizationUrl>
-            <roles>
-                <role>Developer</role>
-                <role>Maintainer</role>
-            </roles>
         </developer>
     </developers>
 
