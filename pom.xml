@@ -15,6 +15,14 @@
         <installer.type>dmg</installer.type>
     </properties>
 
+    <developers>
+        <developer>
+            <name>Rik Peeters</name>
+            <email>rik.peeters@limax.nl</email>
+        </developer>
+    </developers>
+
+
     <build>
         <plugins>
             <plugin>
