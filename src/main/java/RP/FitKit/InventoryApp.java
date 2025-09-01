@@ -15,11 +15,12 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.*;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
+import java.util.List;
 import javax.swing.Timer;
 
 public class InventoryApp extends JFrame {
@@ -34,6 +35,7 @@ public class InventoryApp extends JFrame {
     private static final Color COLOR_HIGHLIGHT = new Color(255, 255, 204);
     private static final Color COLOR_EDITED = new Color(255, 224, 178);
     private static final Color COLOR_PANEL_BG = Color.WHITE;
+    private static final Path SESSION_FILE_PATH = Paths.get(System.getProperty("java.io.tmpdir"), "inventory_session.dat");
 
     private Connection dbConnection;
 
@@ -277,12 +279,14 @@ public class InventoryApp extends JFrame {
                         String palletId = (String) getValueAt(row, 0);
                         editedPalletIds.add(palletId);
                         updateEditedCount();
+                        saveTableState();
 
                     } catch (NumberFormatException e) {
                         JOptionPane.showMessageDialog(InventoryApp.this, "Voer een geldig getal in voor het aantal.", "Ongeldige Invoer", JOptionPane.WARNING_MESSAGE);
                     }
                 } else {
                     super.setValueAt(aValue, row, column);
+                    saveTableState();
                 }
             }
         };
@@ -331,6 +335,7 @@ public class InventoryApp extends JFrame {
         mainPanel.add(scrollPane, BorderLayout.CENTER);
         setupBottomPanel();
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+        loadTableState();
     }
 
     private void setupBottomPanel() {
@@ -446,6 +451,7 @@ public class InventoryApp extends JFrame {
                     if (quantity > 0) {
                         tableModel.addRow(new Object[]{displayedPalletId, productName, quantity, ""});
                         lastInsertedRow = tableModel.getRowCount() - 1;
+                        saveTableState();
                     }
                 } catch (NumberFormatException ex) {
 
@@ -518,6 +524,7 @@ public class InventoryApp extends JFrame {
 
         tableModel.addRow(new Object[]{palletId, productName, quantity, ""});
         lastInsertedRow = tableModel.getRowCount() - 1;
+        saveTableState();
         resetForNextScan();
     }
 
@@ -546,6 +553,7 @@ public class InventoryApp extends JFrame {
                     }
                 }
                 updateEditedCount();
+                saveTableState();
             }
         } else {
             JOptionPane.showMessageDialog(this, "Selecteer een of meerdere rijen om te verwijderen.", "Geen selectie", JOptionPane.WARNING_MESSAGE);
@@ -602,6 +610,7 @@ public class InventoryApp extends JFrame {
                     writer.newLine();
                 }
                 JOptionPane.showMessageDialog(this, "De gegevens zijn succesvol geëxporteerd naar " + fileToSave.getName(), "Export succesvol", JOptionPane.INFORMATION_MESSAGE);
+                clearSession();
             } catch (IOException ex) {
                 ex.printStackTrace();
                 JOptionPane.showMessageDialog(this, "Fout bij het exporteren van de gegevens: " + ex.getMessage(), "Exportfout", JOptionPane.ERROR_MESSAGE);
@@ -628,6 +637,83 @@ public class InventoryApp extends JFrame {
         }
         dispose();
         System.exit(0);
+    }
+
+    private void clearSession() {
+        try {
+            Files.deleteIfExists(SESSION_FILE_PATH);
+            tableModel.setRowCount(0);
+            editedPalletIds.clear();
+            updateEditedCount();
+            lastInsertedRow = -1;
+            resetForNextScan();
+        } catch (IOException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Kon het sessiebestand niet opschonen.", "Sessiefout", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    private void saveTableState() {
+        try (BufferedWriter writer = Files.newBufferedWriter(SESSION_FILE_PATH)) {
+            String editedIds = String.join(",", editedPalletIds);
+            writer.write("EDITED_IDS:" + editedIds);
+            writer.newLine();
+
+            for (int row = 0; row < tableModel.getRowCount(); row++) {
+                writer.write("ROW_START");
+                writer.newLine();
+                writer.write(String.valueOf(tableModel.getValueAt(row, 0))); // Pallet ID
+                writer.newLine();
+                writer.write(String.valueOf(tableModel.getValueAt(row, 1))); // Artikel
+                writer.newLine();
+                writer.write(String.valueOf(tableModel.getValueAt(row, 2))); // Aantal
+                writer.newLine();
+                writer.write(String.valueOf(tableModel.getValueAt(row, 3))); // Notities
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadTableState() {
+        if (!Files.exists(SESSION_FILE_PATH)) {
+            return;
+        }
+
+        try {
+            List<String> lines = Files.readAllLines(SESSION_FILE_PATH);
+            if (lines.isEmpty()) {
+                return;
+            }
+
+            String header = lines.get(0);
+            if (header.startsWith("EDITED_IDS:")) {
+                String idString = header.substring("EDITED_IDS:".length());
+                if (!idString.isEmpty()) {
+                    String[] ids = idString.split(",");
+                    editedPalletIds.addAll(Arrays.asList(ids));
+                }
+            }
+
+            int i = 1;
+            while (i < lines.size()) {
+                if (lines.get(i).equals("ROW_START") && i + 4 < lines.size()) {
+                    String palletId = lines.get(i + 1);
+                    String artikel = lines.get(i + 2);
+                    int aantal = Integer.parseInt(lines.get(i + 3));
+                    String notities = lines.get(i + 4);
+                    tableModel.addRow(new Object[]{palletId, artikel, aantal, notities});
+                    i += 5;
+                } else {
+                    i++;
+                }
+            }
+            updateEditedCount();
+        } catch (IOException | NumberFormatException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Kon de vorige sessie niet herstellen.", "Sessiefout", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void startDiscoMode() {
